@@ -158,8 +158,10 @@ icera-loader.te \
 icera-switcherd.te \
 init.te \
 installd.te \
+kickstart.te \
 mediaserver.te \
 mock_modem.te \
+netmgrd.te \
 netd.te \
 platform_app.te \
 property_contexts \
