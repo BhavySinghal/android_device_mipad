@@ -1,0 +1,85 @@
+# Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# /sys/class/net/... links to USB platform device (mtu config)
+allow netd sysfs_bus_usb:dir r_dir_perms;
+allow netd sysfs_bus_usb:file rw_file_perms;
+
+# Allow netd to access symlinks created by wifiloader
+allow netd wifi_data_file:lnk_file { getattr read write };
+
+# Allow netd to write to sysfs wifi file to change FW path
+allow netd sysfs_wifi:file w_file_perms;
+
+allow netd kernel:system module_request;
+
+dontaudit netd self:capability { sys_module fsetid };
+
+allow netd self:netlink_kobject_uevent_socket create_socket_perms;
+allow netd self:netlink_route_socket nlmsg_write;
+allow netd self:netlink_nflog_socket create_socket_perms;
+allow netd shell_exec:file rx_file_perms;
+allow netd system_file:file x_file_perms;
+allow netd devpts:chr_file rw_file_perms;
+
+# For /proc/sys/net/ipv[46]/route/flush.
+allow netd proc_net:file write;
+
+# For /sys/modules/bcmdhd/parameters/firmware_path
+# XXX Split into its own type.
+allow netd sysfs:file write;
+
+# Set dhcp lease for PAN connection
+unix_socket_connect(netd, property, init)
+allow netd dhcp_prop:property_service set;
+allow netd system_prop:property_service set;
+auditallow netd system_prop:property_service set;
+
+# Connect to PAN
+domain_auto_trans(netd, dhcp_exec, dhcp)
+allow netd dhcp:process signal;
+
+# Needed to update /data/misc/wifi/hostapd.conf
+# TODO: See what we can do to reduce the need for
+# these capabilities
+allow netd self:capability { dac_override chown fowner };
+allow netd wifi_data_file:file create_file_perms;
+allow netd wifi_data_file:dir create_dir_perms;
+allow netd wifi_data_file:sock_file { create setattr unlink write };
+
+# Allow netd to chmod dir /data/misc/dhcp
+allow netd dhcp_data_file:dir create_dir_perms;
+
+# Needed to update /data/misc/net/rt_tables
+allow netd net_data_file:file create_file_perms;
+allow netd net_data_file:dir rw_dir_perms;
+
+# Allow netd to spawn hostapd in it's own domain
+domain_auto_trans(netd, hostapd_exec, hostapd)
+allow netd hostapd:process signal;
+
+# Allow netd to spawn dnsmasq in it's own domain
+domain_auto_trans(netd, dnsmasq_exec, dnsmasq)
+allow netd dnsmasq:process signal;
+
+# Allow netd to start clatd in its own domain
+domain_auto_trans(netd, clatd_exec, clatd)
+allow netd clatd:process signal;
+
+allow netd ctl_mdnsd_prop:property_service set;
+
+# Allow netd to operate on sockets that are passed to it.
+allow netd netdomain:{tcp_socket udp_socket rawip_socket dccp_socket tun_socket} {read write getattr setattr getopt setopt};
+allow netd netdomain:fd use;
+

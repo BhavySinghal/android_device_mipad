@@ -1,0 +1,111 @@
+#Copyright (c) 2011-2014 NVIDIA Corporation.  All Rights Reserved.
+#
+#NVIDIA Corporation and its licensors retain all intellectual property and
+#proprietary rights in and to this software and related documentation.  Any
+#use, reproduction, disclosure or distribution of this software and related
+#documentation without an express license agreement from NVIDIA Corporation
+#is strictly prohibited.
+
+#import init.mocha_emmc.rc
+import init.tegra.rc
+import init.t124.rc
+import init.cal.rc
+import init.mocha.usb.rc
+import init.touch.rc
+
+
+on boot
+    #max resolution supported for Miracast is 1080p, represented interms of macroblocks
+    setprop nvwfd.maxresolution_macroblocks 8160
+    #enable Miracast game mode support
+    setprop nvwfd.gamemode 1
+
+    # Enable DEBUG_SUSPEND, DEBUG_EXIT_SUSPEND, and DEBUG_WAKEUP
+    write /sys/module/wakelock/parameters/debug_mask 7
+
+    #To allow interfaces to get v6 address when tethering is enabled
+    write /proc/sys/net/ipv6/conf/rmnet0/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet1/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet2/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet3/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet4/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet5/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet6/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet7/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio0/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio1/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio2/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio3/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio4/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio5/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio6/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_sdio7/accept_ra 2
+
+
+on fs
+    setprop ro.crypto.tmpfs_options size=128m,mode=0771,uid=1000,gid=1000
+    setprop ro.crypto.umount_sd false
+    setprop ro.crypto.fuse_sdcard true
+    setprop audio.custompolicy 1
+    mount_all /fstab.mocha
+    restorecon_recursive /persist
+
+
+
+on post-fs-data
+#    insmod /system/lib/modules/texfat.ko
+
+    # Set indication (checked by vold) that we have finished this action
+    setprop vold.post_fs_data_done 1
+
+    # Mounting of persist is moved to 'on emmc-fs' and 'on fs' sections
+    # We chown/chmod /persist again so because mount is run as root + defaults
+    chown system system /persist
+
+    #Create directory used by sensor subsystem(dsps)
+    mkdir /data/system/sensors
+    chmod 665 /data/system/sensors
+    write /data/system/sensors/settings 1
+    chmod 660 /data/system/sensors/settings
+
+    # sensors pipe
+    mkdir /data/sen_lsm6db0_pipes
+    chmod 775 /data/sen_lsm6db0_pipes
+
+    chmod 0775 /persist
+    mkdir /persist/property 0700 root root
+
+    chown system system /persist/serialno
+    chmod 0400 /persist/serialno
+
+    # mount console ramooops
+    mount pstore pstore /sys/fs/pstore
+
+    # Mount a tmpfs into /mnt/tmp for hosting nvram, phs shared memory
+    mkdir /mnt/tmp 0770 system system
+    mount tmpfs tmpfs /mnt/tmp mode=0775,gid=1003
+
+    # Immersion
+#    export VIBE_PIPE_PATH /dev/pipes
+#    mkdir /dev/pipes 0771 system system
+
+
+on init
+    setprop keyguard.no_require_sim true
+    setprop persist.tegra.didim.enable 0
+    write /proc/sys/vm/page-cluster 0
+
+
+service charger /sbin/healthd -c
+    class charger
+    critical
+    seclabel u:r:healthd:s0
+
+on charger
+    setprop persist.sys.usb.config mtp
+    mount ext4 /dev/block/platform/sdhci-tegra.3/by-name/APP /system wait ro
+    write /sys/devices/system/cpu/cpuquiet/tegra_cpuquiet/enable 1
+    write /sys/devices/system/cpu/cpuquiet/current_governor runnable
+    write /sys/devices/system/cpu/cpuquiet/tegra_cpuquiet/no_lp -1
+
+
